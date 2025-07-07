@@ -16,16 +16,138 @@ import { useDispatch, useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchAllBranches } from '../redux/slices/getActiveBranchesSlice';
-import { fetchAllSources } from '../redux/slices/getActiveSourceSlice';
-import { fetchActiveStatuses } from '../redux/slices/getActiveStatusesSlice';
-import { fetchAllEmployees } from '../redux/slices/getActiveEmployeesSlice';
-import { fetchSearchContacts, clearSearchContacts } from '../redux/slices/getAllSearchContact';
-import { fetchLeadStatusById, resetLeadStatusById } from '../redux/slices/getLeadStatusByIdSlice';
-import { fetchAllLeads, resetLeadsState } from '../redux/slices/getAllLeadSlice';
-import { addLead, resetAddLeadState } from '../redux/slices/addLeadSlice';
+import {
+  fetchAllBranches,
+  fetchAllSources,
+  fetchActiveStatuses,
+  fetchAllEmployees,
+  fetchSearchContacts,
+  clearSearchContacts,
+  fetchLeadStatusById,
+  resetLeadStatusById,
+  fetchAllLeads,
+  resetLeadsState,
+  addLead,
+  resetAddLeadState,
+} from '../redux/slice/index';
 import debounce from 'lodash.debounce';
 import LinearGradient from 'react-native-linear-gradient';
+
+// Memoized ContactSearchInput component
+const ContactSearchInput = React.memo(
+  ({ contactSearchQuery, setContactSearchQuery, selectedContact, setSelectedContact, selectedContactId, setSelectedContactId, newContactPhone, setNewContactPhone, newContactEmail, setNewContactEmail, scrollViewRef }) => {
+    const dispatch = useDispatch();
+    const { searchContacts = [], loading: contactsLoading, error: contactsError } = useSelector(
+      (state) => state.searchContact || {}
+    );
+
+    const debouncedSearch = useMemo(
+      () =>
+        debounce((query) => {
+          if (query.trim()) {
+            dispatch(fetchSearchContacts(query));
+          } else {
+            dispatch(clearSearchContacts());
+          }
+        }, 600),
+      [dispatch]
+    );
+
+    useEffect(() => {
+      debouncedSearch(contactSearchQuery);
+      return () => debouncedSearch.cancel();
+    }, [contactSearchQuery, debouncedSearch]);
+
+    const handleContactSelect = useCallback(
+      (item) => {
+        setSelectedContact(item.name);
+        setContactSearchQuery(item.name);
+        setSelectedContactId(item._id);
+        setNewContactPhone('');
+        setNewContactEmail('');
+        dispatch(clearSearchContacts());
+      },
+      [setSelectedContact, setContactSearchQuery, setSelectedContactId, setNewContactPhone, setNewContactEmail, dispatch]
+    );
+
+    return (
+      <View>
+        <TextInput
+          placeholder="Search or Enter Contact"
+          placeholderTextColor="#000000"
+          value={contactSearchQuery}
+          onChangeText={(text) => {
+            setContactSearchQuery(text);
+            setSelectedContact(text);
+            if (text !== selectedContact) {
+              setSelectedContactId(null);
+            }
+          }}
+          onFocus={() => {
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          }}
+          className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {contactsLoading ? (
+          <Text className="p-2 text-sm text-gray-600 mt-2">Loading contacts...</Text>
+        ) : contactsError ? (
+          <Text className="p-2 text-sm text-red-600 mt-2">Failed to load contacts: {contactsError}</Text>
+        ) : searchContacts.length > 0 && contactSearchQuery ? (
+          <View className="mt-2 bg-white border border-gray-400 rounded-md max-h-24">
+            <ScrollView nestedScrollEnabled>
+              {searchContacts.map((item, index) => (
+                <TouchableOpacity
+                  key={item._id || `contact-${index}`}
+                  onPress={() => handleContactSelect(item)}
+                  className="p-2"
+                >
+                  <Text className="text-sm text-black">{item.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : contactSearchQuery && !searchContacts.length ? (
+          <Text className="p-2 text-sm text-gray-600 mt-2">No matching contacts</Text>
+        ) : null}
+        {!selectedContactId && contactSearchQuery && (
+          <View className="mt-4 flex-row justify-between gap-4 w-full">
+            <View className="flex-1">
+              <Text className="text-sm font-semibold mb-1 text-black">Phone Number</Text>
+              <TextInput
+                placeholder="Enter Phone (10 digits)"
+                value={newContactPhone}
+                onChangeText={setNewContactPhone}
+                onFocus={() => {
+                  scrollViewRef.current?.scrollTo({ y: 100, animated: true });
+                }}
+                className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold mb-1 text-black">Email Address</Text>
+              <TextInput
+                placeholder="Enter Email"
+                value={newContactEmail}
+                onChangeText={setNewContactEmail}
+                onFocus={() => {
+                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
+                }}
+                className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                maxLength={50}
+              />
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+);
 
 const { width, height } = Dimensions.get('window');
 
@@ -81,9 +203,6 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
   );
   const { activeEmployees: employees = [], loading: employeesLoading, error: employeesError } = useSelector(
     (state) => state.activeEmployees || {}
-  );
-  const { searchContacts = [], loading: contactsLoading, error: contactsError } = useSelector(
-    (state) => state.searchContact || {}
   );
   const { data: leadStatusDetail = {}, loading: statusLoading, error: statusError } = useSelector(
     (state) => state.leadStatusById || {}
@@ -189,91 +308,72 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
     }
   }, [addLeadSuccess, addLeadError, dispatch, setModalVisible, onLeadAdded]);
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((query) => {
-        if (query.trim()) {
-          dispatch(fetchSearchContacts(query));
-        } else {
-          dispatch(clearSearchContacts());
-        }
-      }, 600),
-    [dispatch]
-  );
-
-  useEffect(() => {
-    return () => {
-      debouncedSearch.cancel();
-    };
-  }, [debouncedSearch]);
-
   const priorityOptions = ['High', 'Medium', 'Low', 'Important'];
 
-  const closeAllDropdowns = () => {
+  const closeAllDropdowns = useCallback(() => {
     setAssignToDropdownVisible(false);
     setBranchDropdownVisible(false);
     setSourceDropdownVisible(false);
     setPriorityDropdownVisible(false);
     setLeadStatusDropdownVisible(false);
-  };
+  }, []);
 
-  const toggleDropdown = (setVisible) => {
-    setVisible((prev) => {
-      if (!prev) closeAllDropdowns();
-      return !prev;
-    });
-  };
+  const toggleDropdown = useCallback(
+    (setVisible) => {
+      setVisible((prev) => {
+        if (!prev) closeAllDropdowns();
+        return !prev;
+      });
+    },
+    [closeAllDropdowns]
+  );
 
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isValidPhone = (phone) => /^\d{10}$/.test(phone);
-  const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+  const isValidEmail = useCallback((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), []);
+  const isValidPhone = useCallback((phone) => /^\d{10}$/.test(phone), []);
+  const isValidObjectId = useCallback((id) => /^[0-9a-fA-F]{24}$/.test(id), []);
 
-  const handlePickerChange = (event, selectedValue) => {
-    const { type } = pickerState;
+  const handlePickerChange = useCallback(
+    (event, selectedValue) => {
+      const { type } = pickerState;
 
-    // Handle dismissal
-    if (event.type === 'dismissed') {
-      setPickerState({ show: false, mode: 'date', type: null, value: new Date() });
-      return;
-    }
-
-    // Handle value selection
-    if (selectedValue) {
-      if (type === 'meetingDate') {
-        setMeetingDate(selectedValue);
-      } else if (type === 'meetingTime') {
-        setMeetingTime(selectedValue);
-      } else if (type === 'estimationDate') {
-        setEstimationDate(selectedValue);
+      if (event.type === 'dismissed') {
+        setPickerState({ show: false, mode: 'date', type: null, value: new Date() });
+        return;
       }
-    }
 
-    // Close picker based on platform
-    if (Platform.OS === 'ios') {
-      // iOS: Close immediately after selection
-      setPickerState({ show: false, mode: 'date', type: null, value: new Date() });
-    } else {
-      // Android: Close only if user confirms or dismisses
-      if (event.type === 'set') {
+      if (selectedValue) {
+        if (type === 'meetingDate') {
+          setMeetingDate(selectedValue);
+        } else if (type === 'meetingTime') {
+          setMeetingTime(selectedValue);
+        } else if (type === 'estimationDate') {
+          setEstimationDate(selectedValue);
+        }
+      }
+
+      if (Platform.OS === 'ios' || event.type === 'set') {
         setPickerState({ show: false, mode: 'date', type: null, value: new Date() });
       }
-      // If event.type is 'neutral', keep picker open (user is still selecting)
-    }
-  };
+    },
+    [pickerState]
+  );
 
-  const showPicker = (type, mode, value) => {
-    setPickerState({
-      show: true,
-      mode,
-      type,
-      value,
-    });
-  };
+  const showPicker = useCallback(
+    (type, mode, value) => {
+      setPickerState({
+        show: true,
+        mode,
+        type,
+        value,
+      });
+    },
+    []
+  );
 
   const renderDropdown = useCallback(
     (
       visible,
-      setInvisible,
+      setVisible,
       selectedValue,
       setSelectedValue,
       options = [],
@@ -286,7 +386,7 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
         <View className="mb-2">
           <TouchableOpacity
             className="flex-row justify-between items-center border border-gray-400 rounded-md p-3"
-            onPress={() => toggleDropdown(setInvisible)}
+            onPress={() => toggleDropdown(setVisible)}
           >
             <Text className={`text-sm ${selectedValue ? 'text-black' : 'text-gray-500'}`}>
               {selectedValue || placeholder}
@@ -321,7 +421,7 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
                           if (setSelectedId) setSelectedId(id);
                           if (placeholder === 'Select Status') setSelectedStatusId(id);
                           if (isSourceDropdown) setSelectedSourceId(id);
-                          setInvisible(false);
+                          setVisible(false);
                         }}
                         className="p-2"
                       >
@@ -340,103 +440,6 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
     },
     [toggleDropdown, setSelectedStatusId, setSelectedSourceId, isValidObjectId]
   );
-
-  const renderContactSearch = useCallback(() => {
-    return (
-      <View>
-        <TextInput
-          placeholder="Search or Enter Contact"
-          value={contactSearchQuery}
-          onChangeText={(text) => {
-            setContactSearchQuery(text);
-            setSelectedContact(text);
-            debouncedSearch(text);
-            if (text !== selectedContact) {
-              setSelectedContactId(null);
-            }
-          }}
-          onFocus={() => {
-            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          }}
-          className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {contactsLoading ? (
-          <Text className="p-2 text-sm text-gray-600 mt-2">Loading contacts...</Text>
-        ) : contactsError ? (
-          <Text className="p-2 text-sm text-red-600 mt-2">Failed to load contacts: {contactsError}</Text>
-        ) : searchContacts.length > 0 && contactSearchQuery ? (
-          <View className="mt-2 bg-white border border-gray-400 rounded-md max-h-24">
-            <ScrollView nestedScrollEnabled>
-              {searchContacts.map((item, index) => (
-                <TouchableOpacity
-                  key={item._id || `contact-${index}`}
-                  onPress={() => {
-                    setSelectedContact(item.name);
-                    setContactSearchQuery(item.name);
-                    setSelectedContactId(item._id);
-                    setNewContactPhone('');
-                    setNewContactEmail('');
-                    dispatch(clearSearchContacts());
-                  }}
-                  className="p-2"
-                >
-                  <Text className="text-sm text-black">{item.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        ) : contactSearchQuery && !searchContacts.length ? (
-          <Text className="p-2 text-sm text-gray-600 mt-2">No matching contacts</Text>
-        ) : null}
-        {!selectedContactId && contactSearchQuery && (
-          <View className="mt-4 flex-row justify-between gap-4 w-full">
-            <View className="flex-1">
-              <Text className="text-sm font-semibold mb-1 text-black">Phone Number</Text>
-              <TextInput
-                placeholder="Enter Phone (10 digits)"
-                value={newContactPhone}
-                onChangeText={setNewContactPhone}
-                onFocus={() => {
-                  scrollViewRef.current?.scrollTo({ y: 100, animated: true });
-                }}
-                className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
-                keyboardType="numeric"
-                maxLength={10}
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-semibold mb-1 text-black">Email Address</Text>
-              <TextInput
-                placeholder="Enter Email"
-                value={newContactEmail}
-                onChangeText={setNewContactEmail}
-                onFocus={() => {
-                  scrollViewRef.current?.scrollTo({ y: 150, animated: true });
-                }}
-                className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                maxLength={50}
-              />
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }, [
-    contactSearchQuery,
-    selectedContact,
-    selectedContactId,
-    newContactPhone,
-    newContactEmail,
-    searchContacts,
-    contactsLoading,
-    contactsError,
-    debouncedSearch,
-    dispatch,
-  ]);
 
   const renderDynamicFields = useCallback(() => {
     if (!statusDetail || !selectedStatusId) return null;
@@ -496,6 +499,7 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
             <Text className="text-sm font-semibold mb-1 text-black">{descriptionLabel}</Text>
             <TextInput
               placeholder={`Enter ${descriptionLabel}`}
+              placeholderTextColor="#000000"
               value={meetingDescription}
               onChangeText={setMeetingDescription}
               onFocus={() => {
@@ -509,11 +513,11 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
         )}
       </View>
     );
-  }, [statusDetail, selectedStatusId, meetingDate, meetingTime, estimationDate, estimationBudget, meetingDescription]);
+  }, [statusDetail, selectedStatusId, meetingDate, meetingTime, estimationDate, estimationBudget, meetingDescription, showPicker]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
-      if (!selectedContactId && !contactSearchQuery.trim()) {
+      if (!selectedContactId && contactSearchQuery.trim()) {
         alert('Please enter a contact name');
         return;
       }
@@ -605,11 +609,34 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
         formData.statusData.description = meetingDescription.trim();
       }
 
+      console.log('AddLeadForm: Submitting form with data:', formData);
       await dispatch(addLead(formData)).unwrap();
     } catch (error) {
       alert(`Error submitting form: ${error.message || 'Please check your input and try again'}`);
     }
-  };
+  }, [
+    selectedContactId,
+    contactSearchQuery,
+    newContactPhone,
+    newContactEmail,
+    selectedAssignToId,
+    selectedBranch,
+    selectedSourceId,
+    selectedPriority,
+    selectedStatusId,
+    statusDetail,
+    meetingTime,
+    estimationBudget,
+    meetingDate,
+    reference,
+    description,
+    model,
+    meetingDescription,
+    dispatch,
+    isValidPhone,
+    isValidEmail,
+    isValidObjectId,
+  ]);
 
   return (
     <Modal
@@ -659,14 +686,26 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
             contentContainerStyle={{ padding: 16, paddingBottom: 20 }}
             keyboardShouldPersistTaps="always"
           >
-            {(contactsLoading || statusLoading || leadsLoading || branchesLoading || sourcesLoading || statusesLoading || employeesLoading) ? (
+            {(statusLoading || leadsLoading || branchesLoading || sourcesLoading || statusesLoading || employeesLoading) ? (
               <ActivityIndicator size="large" color="#0000ff" />
-            ) : (contactsError || statusError || leadsError || branchesError || sourcesError || statusesError || employeesError) ? (
+            ) : (statusError || leadsError || branchesError || sourcesError || statusesError || employeesError) ? (
               <Text className="p-2 text-sm text-red-600">Error loading data: Please try again</Text>
             ) : (
               <>
                 <Text className="text-sm font-semibold mb-1 mt-4 text-black">Contact Name</Text>
-                {renderContactSearch()}
+                <ContactSearchInput
+                  contactSearchQuery={contactSearchQuery}
+                  setContactSearchQuery={setContactSearchQuery}
+                  selectedContact={selectedContact}
+                  setSelectedContact={setSelectedContact}
+                  selectedContactId={selectedContactId}
+                  setSelectedContactId={setSelectedContactId}
+                  newContactPhone={newContactPhone}
+                  setNewContactPhone={setNewContactPhone}
+                  newContactEmail={newContactEmail}
+                  setNewContactEmail={setNewContactEmail}
+                  scrollViewRef={scrollViewRef}
+                />
 
                 <Text className="text-sm font-semibold mb-1 mt-4 text-black">Assign To</Text>
                 {employeesLoading ? (
@@ -768,43 +807,35 @@ const AddLeadForm = ({ modalVisible, setModalVisible, totalHeight = 600, onLeadA
                 <View className="mt-4 gap-1">
                   <Text className="text-sm font-semibold mb-1 text-black">Reference</Text>
                   <TextInput
-                    placeholder="Reference"
+                    placeholder="Enter Reference"
+                    placeholderTextColor="#000000"
                     value={reference}
                     onChangeText={setReference}
-                    onFocus={() => {
-                      scrollViewRef.current?.scrollTo({ y: 400, animated: true });
-                    }}
                     className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
-                    maxLength={100}
                   />
                 </View>
 
                 <View className="mt-4 gap-1">
                   <Text className="text-sm font-semibold mb-1 text-black">Description</Text>
                   <TextInput
-                    placeholder="Description"
+                    placeholder="Enter Description"
+                    placeholderTextColor="#000000"
                     value={description}
                     onChangeText={setDescription}
-                    onFocus={() => {
-                      scrollViewRef.current?.scrollTo({ y: 450, animated: true });
-                    }}
-                    className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white min-h-[60px]"
+                    className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
                     multiline
-                    maxLength={500}
+                    numberOfLines={3}
                   />
                 </View>
 
                 <View className="mt-4 gap-1">
                   <Text className="text-sm font-semibold mb-1 text-black">Model</Text>
                   <TextInput
-                    placeholder="Model"
+                    placeholder="Enter Model"
+                    placeholderTextColor="#000000"
                     value={model}
                     onChangeText={setModel}
-                    onFocus={() => {
-                      scrollViewRef.current?.scrollTo({ y: 500, animated: true });
-                    }}
                     className="border border-gray-400 rounded-md p-3 text-sm text-black bg-white"
-                    maxLength={100}
                   />
                 </View>
 

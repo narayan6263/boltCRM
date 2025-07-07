@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useDispatch, useSelector } from 'react-redux';
-import { userLogin } from '../redux/slices/logInSlice';
+import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
+import { userLogin } from '../redux/slice/index';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
@@ -30,8 +30,8 @@ const validateEmail = (email) => {
 };
 
 const LoginScreen = ({ navigation }) => {
-  const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.auth || {});
+  const dispatch = useAppDispatch();
+  const { loading } = useAppSelector((state) => state.auth || {});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

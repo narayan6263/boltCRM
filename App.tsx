@@ -1,20 +1,25 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
-import store from './src/redux/store';
-import StackNavigator from './src/navigation/StackNavigator';
+import store from './src/redux/slice/store'; // Redux store
+import StackNavigator from './src/navigation/StackNavigator'; // Main navigator
+// import DataInitializer from './src/api/DataInitializer'; // Import DataInitializer
 
 const App = () => {
   return (
     <Provider store={store}>
-      <NavigationContainer>
-        <StackNavigator />
-      </NavigationContainer>
+      {/* <DataInitializer> */}
+        <NavigationContainer>
+          <StackNavigator />
+        </NavigationContainer>
+      {/* </DataInitializer> */}
     </Provider>
   );
 };
 
 export default App;
+
+
 
 // // import React from 'react';
 // // import { NavigationContainer } from '@react-navigation/native';

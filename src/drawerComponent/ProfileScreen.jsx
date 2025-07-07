@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { View, Text, Image, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchEmployeeById, clearEmployee } from '../redux/slices/getEmployeeByIdSlice';
-import { uploadEmployeeImageThunk } from '../redux/slices/employeeImageSlice';
+import { fetchEmployeeById, clearEmployee,uploadEmployeeImageThunk } from '../redux/slice/index';
+// import { uploadEmployeeImageThunk } from '../redux/slices/employeeImageSlice';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -161,8 +161,9 @@ const ProfileScreen = () => {
             </View>
             <View className="flex-row items-center space-x-3">
               <Ionicons name="call" size={20} color="#555" />
-              <Text className="text-gray-800 font-medium">{employee.mobile || 'N/A'}</Text>
+              <Text className="text-gray-800 font-medium">{employee.phoneNumber || 'N/A'}</Text>
             </View>
+          
             <View className="flex-row items-center space-x-3">
               <Ionicons name="business" size={20} color="#555" />
               <Text className="text-gray-800 font-medium">{employee.organizationId?.organizationName || 'N/A'}</Text>

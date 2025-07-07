@@ -15,7 +15,7 @@ const CustomText = ({ children, className, style }) => {
 
 const styles = StyleSheet.create({
   text: {
-    fontFamily: 'Lato-BlackItalic.ttf', // Tera font
+    fontFamily: 'Lato-BlackItalic', // Corrected font family name
   },
 });
 

@@ -1,5 +1,3 @@
-
-
 import CallLogs from 'react-native-call-log';
 import { format } from 'date-fns';
 import { PermissionsAndroid, Platform } from 'react-native';
@@ -101,7 +99,7 @@ export const getLatestCallLog = async (phoneNumber) => {
       return null;
     }
 
-    const durationInSeconds = parseInt(matchingLog.duration) || 0;
+    const durationInSeconds = matchingLog.duration ? parseInt(matchingLog.duration) : 0;
     const durationInMinutes = (durationInSeconds / 60).toFixed(2);
     const minutes = Math.floor(durationInSeconds / 60);
     const seconds = durationInSeconds % 60;
@@ -116,7 +114,8 @@ export const getLatestCallLog = async (phoneNumber) => {
       const timestamp = parseInt(matchingLog.timestamp);
       if (!isNaN(timestamp) && timestamp > 0) {
         startDate = new Date(timestamp);
-        endDate = new Date(timestamp + durationInSeconds * 1000);
+        // Ensure endDate is calculated correctly from duration
+        endDate = new Date(timestamp + (durationInSeconds * 1000));
         
         // Validate dates
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
@@ -139,8 +138,8 @@ export const getLatestCallLog = async (phoneNumber) => {
       formattedDuration,
       callStatus,
       callSid: '',
-      callStartTime: format(startDate, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-      callEndTime: format(endDate, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+      callStartTime: startDate.toISOString(), // Ensure ISO string
+      callEndTime: endDate.toISOString(), // Ensure ISO string
     };
 
     console.log('getLatestCallLog: Returning call log:', JSON.stringify(callLog, null, 2));

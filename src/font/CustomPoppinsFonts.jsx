@@ -15,7 +15,7 @@ const CustomPoppinsFonts = ({ children, className, style }) => {
 
 const styles = StyleSheet.create({
   text: {
-    fontFamily: 'Lato-Regular', // Tera font
+    fontFamily: 'Lato-Regular', // Corrected font family name
   },
 });
 

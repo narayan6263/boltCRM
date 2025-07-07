@@ -83,3 +83,17 @@ build/
 *.iml
 *.apk
 *.keystore
+
+# .gitignore
+node_modules/
+android/.gradle/
+android/app/build/
+ios/Pods/
+ios/Podfile.lock
+*.log
+.env
+*.keystore
+build/
+.expo/
+.expo-shared/
+

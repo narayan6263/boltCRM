@@ -8,7 +8,7 @@ import { styled } from 'nativewind';
 import CustomPoppinsFonts from '../../font/CustomPoppinsFonts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchEmployeeById, clearEmployee } from '../../redux/slices/getEmployeeByIdSlice';
+import { fetchEmployeeById, clearEmployee } from '../../redux/slice/index';
 
 // Styled components
 const StyledTouchableOpacity = styled(TouchableOpacity);

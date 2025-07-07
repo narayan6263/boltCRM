@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -21,7 +19,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { FontConfig } from '../components/fontSize';
 import BulkAssignLeads from './BulkAssignLeads';
 import { useDispatch, useSelector } from 'react-redux';
-import { getDecryptInfo, resetDecryptInfo } from '../redux/slices/getDecryptInfoSlice';
+import { getDecryptInfo, resetDecryptInfo } from '../redux/slice/index';
 import { debounce } from 'lodash';
 
 const StyledView = styled(View);
@@ -74,21 +72,8 @@ const LeadCard = ({ lead, formattedDate, formattedFollowUpDate, navigation }) =>
       }
     };
 
-    const preFetchPhoneNumber = async () => {
-      if (lead.contactId && !decryptedPhoneNumber) {
-        try {
-          const result = await dispatch(getDecryptInfo(lead.contactId)).unwrap();
-          const phone = result?.data?.phone || result?.phone;
-          setDecryptedPhoneNumber(phone);
-        } catch (err) {
-          console.error('LeadCard: Pre-fetch error', err);
-        }
-      }
-    };
-
     checkCallPermission();
-    preFetchPhoneNumber();
-  }, [lead.contactId, dispatch, decryptedPhoneNumber]);
+  }, []); // Depend only on initial render for permission
 
   const fetchDecryptedPhone = async () => {
     if (decryptedPhoneNumber) {
@@ -210,7 +195,7 @@ const LeadCard = ({ lead, formattedDate, formattedFollowUpDate, navigation }) =>
 
   const handleLeadPress = () => {
     console.log('LeadCard: Navigating to LeadDetailsScreen for lead', lead.leadId);
-    navigation.navigate('LeadDetailsScreen', { lead, formattedDate, formattedFollowUpDate });
+    navigation.navigate('LeadDetailsScreen', { lead, formattedDate, formattedFollowUpDate, previousScreen: 'LeadsScreen' });
   };
 
   const screenWidth = Dimensions.get('window').width;

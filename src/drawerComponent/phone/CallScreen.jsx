@@ -14,7 +14,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 // import styles from './styles';
 
 const CallScreen = ({ route, navigation }) => {
-  const { phoneNumber: initialPhoneNumber = '', leadId } = route.params || {};
+  const { phoneNumber: initialPhoneNumber = '', leadId, sourceScreen } = route.params || {};
   const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber);
   const [callInitiated, setCallInitiated] = useState(false); // Track if call was initiated
   const [isActionLoading, setIsActionLoading] = useState(false); // Add loading state for actions
@@ -33,7 +33,7 @@ const CallScreen = ({ route, navigation }) => {
       ) {
         console.log('CallScreen: Navigating to FeedbackScreen', { phoneNumber, leadId });
         setCallInitiated(false); // Reset call state
-        navigation.navigate('FeedbackScreen', { phoneNumber, leadId });
+        navigation.navigate('FeedbackScreen', { phoneNumber, leadId, sourceScreen });
       }
       appState.current = nextAppState;
     };
@@ -43,7 +43,7 @@ const CallScreen = ({ route, navigation }) => {
       console.log('CallScreen: Cleaning up AppState listener');
       subscription.remove();
     };
-  }, [navigation, phoneNumber, leadId, callInitiated]);
+  }, [navigation, phoneNumber, leadId, callInitiated, sourceScreen]);
 
   const requestCallPermission = async () => {
     if (Platform.OS !== 'android') return true;

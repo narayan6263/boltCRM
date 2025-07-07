@@ -1,18 +1,14 @@
-
-
-
 import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, ScrollView, Dimensions } from 'react-native';
 import { styled } from 'nativewind';
 import { useSelector, useDispatch } from 'react-redux';
 import { Picker } from '@react-native-picker/picker';
-import { fetchAllEmployees } from '../redux/slices/getActiveEmployeesSlice';
-import { fetchAllLeads } from '../redux/slices/getAllLeadSlice';
-import { assignLeads, resetAssignState } from '../redux/slices/bulkAssignLeadsSlice';
+import { assignLeads, resetAssignState, fetchAllLeads, fetchAllEmployees } from '../redux/slice/index';
 import CustomPoppinsFonts from '../font/CustomPoppinsFonts';
 import Feather from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
 import { useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const StyledView = styled(View);
 const StyledTouchable = styled(TouchableOpacity);
@@ -57,10 +53,15 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
         message: 'Leads assigned successfully!',
       });
       // Reset state after 2 seconds
-      setTimeout(() => {
+      setTimeout(async () => {
         dispatch(resetAssignState());
         setSelectedEmployee(null);
-        dispatch(fetchAllLeads({ page: 1, refresh: true }));
+        const empId = await AsyncStorage.getItem('empId');
+        if (empId) {
+          dispatch(fetchAllLeads({ filters: { assignedTo: empId }, page: 1, refresh: true }));
+        } else {
+          dispatch(fetchAllLeads({ page: 1, refresh: true }));
+        }
         setAlertState({ visible: false, type: '', message: '' });
         if (onClose) onClose();
       }, 2000);
@@ -86,7 +87,7 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async() => {
     console.log('BulkAssignLeads: handleSubmit called', { selectedEmployee, leadIds });
     if (!selectedEmployee) {
       console.log('BulkAssignLeads: No employee selected');
@@ -113,7 +114,15 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
       return;
     }
     console.log('BulkAssignLeads: Dispatching assignLeads', { leadIds, assignedTo: selectedEmployee });
-    dispatch(assignLeads({ leadIds, assignedTo: selectedEmployee }));
+    // dispatch(assignLeads({ leadIds, assignedTo: selectedEmployee }));
+    try {
+      const result = await dispatch(assignLeads({ leadIds, assignedTo: selectedEmployee })).unwrap(); // ✅ unwrap to catch errors directly
+      if (result) {
+        dispatch(fetchAllLeads({ page: 1, refresh: true, limit: 10 })).unwrap();
+      }
+    } catch (err) {
+      console.log('Error in assigning leads:', err);
+    }
   };
 
   // Render alert
@@ -123,9 +132,8 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
 
     return (
       <StyledView
-        className={`rounded-md p-3 mb-3 ${
-          isError ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-        } border`}
+        className={`rounded-md p-3 mb-3 ${isError ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+          } border`}
       >
         <StyledText
           className={`text-sm font-semibold ${isError ? 'text-red-600' : 'text-green-600'}`}
@@ -181,7 +189,7 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
                 style={{
                   height: 56,
                   width: dropdownWidth,
-                  paddingBottom:2
+                  paddingBottom: 2
                 }}
                 enabled={!employeesLoading && !assignLoading}
               >
@@ -204,9 +212,8 @@ const BulkAssignLeads = ({ route, navigation, onClose }) => {
       <LinearGradient colors={['#3B82F6', '#1D4ED8']} className="rounded-md">
         <StyledTouchable
           onPress={handleSubmit}
-          className={`py-2 px-4 flex-row items-center justify-center rounded-md ${
-            assignLoading || employeesLoading || !selectedEmployee ? 'opacity-50' : 'opacity-100'
-          }`}
+          className={`py-2 px-4 flex-row items-center justify-center rounded-md ${assignLoading || employeesLoading || !selectedEmployee ? 'opacity-50' : 'opacity-100'
+            }`}
           disabled={assignLoading || employeesLoading || !selectedEmployee}
         >
           {assignLoading ? (
